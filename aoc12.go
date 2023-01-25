@@ -6,215 +6,121 @@ import (
 	"os"
 )
 
-type coord struct {
+type Coord struct {
 	r int
 	c int
 }
 
-var distanced = make(map[coord]int)
-
-func printpath(visited map[coord]coord, topo [][]byte) {
-
-	rows := len(topo)
-	columns := len(topo[0])
-
-	for r := 0; r < rows; r++ {
-		visitmap := []byte{}
-		for c := 0; c < columns; c++ {
-			rc := coord{r: r, c: c}
-			if _, f := visited[rc]; !f {
-				visitmap = append(visitmap, '.')
-				continue
-			}
-
-			next := visited[rc]
-			if next.r > r {
-				visitmap = append(visitmap, 'V')
-				continue
-			}
-			if next.r < r {
-				visitmap = append(visitmap, '^')
-				continue
-			}
-			if next.c > c {
-				visitmap = append(visitmap, '>')
-				continue
-			}
-			if next.c < c {
-				visitmap = append(visitmap, '<')
-				continue
-			}
-		}
-		fmt.Println(string(visitmap))
-	}
-
-	fmt.Println("-----")
-}
-
-func dynamicsearch(start, end coord, topo [][]byte, visited map[coord]coord) int {
-
-	dbg := false
-	dbg = start.r == 2 && start.c == 1
-
-	if start == end {
-		// fmt.Println("Found path:", visited)
-		// printpath(visited, topo)
-		return 0
-	}
-
-	if distance, found := distanced[start]; found {
-		return distance
-	}
-
-	// fmt.Println(start, "start")
-
-	minsteps := len(topo)*len(topo[0]) + 1
-
-	rightcoord := coord{r: start.r, c: start.c + 1}
-	visited[start] = rightcoord
-	rightdist, err := trysearch(visited, rightcoord, start, end, topo, dbg)
-
-	if !err && minsteps > rightdist {
-		minsteps = rightdist
-		if dbg {
-			fmt.Println("right: ", minsteps)
-		}
-	}
-
-	leftcoord := coord{r: start.r, c: start.c - 1}
-	visited[start] = leftcoord
-	leftdist, err := trysearch(visited, leftcoord, start, end, topo, dbg)
-
-	if !err && minsteps > leftdist {
-		minsteps = leftdist
-		if dbg {
-			fmt.Println("left: ", minsteps)
-		}
-	}
-
-	upcoord := coord{r: start.r - 1, c: start.c}
-	visited[start] = upcoord
-	updist, err := trysearch(visited, upcoord, start, end, topo, dbg)
-
-	if !err && minsteps > updist {
-		minsteps = updist
-		if dbg {
-			fmt.Println("up: ", minsteps)
-		}
-	}
-
-	downcoord := coord{r: start.r + 1, c: start.c}
-	visited[start] = downcoord
-	downdist, err := trysearch(visited, downcoord, start, end, topo, dbg)
-	if dbg {
-		fmt.Println(downdist, err)
-	}
-	if !err && minsteps > downdist {
-		minsteps = downdist
-		if dbg {
-			fmt.Println("down: ", minsteps)
-		}
-	}
-
-	if dbg {
-		printpath(visited, topo)
-	}
-
-	distanced[start] = minsteps
-	delete(visited, start)
-	return minsteps
-}
-
-func trysearch(
-	visited map[coord]coord,
-	test coord,
-	start coord,
-	end coord,
-	topo [][]byte, dbg bool) (int, bool) {
-
-	if _, found := visited[test]; found {
-		if dbg {
-			fmt.Println("rejected due to visited")
-		}
-		return 0, true
-	}
-
-	if test.r < 0 || test.r >= len(topo) || test.c < 0 || test.c >= len(topo[0]) {
-		if dbg {
-			fmt.Println("rejected due to border")
-		}
-		return 0, true
-	}
-
-	p := int(topo[test.r][test.c])
-	q := int(topo[start.r][start.c])
-	if p-q > 1 {
-		if dbg {
-			fmt.Println("rejected due to height", string(byte(p)), string(byte(q)))
-		}
-		return 0, true
-	}
-
-	dist := 1 + dynamicsearch(test, end, topo, visited)
-
-	return dist, false
+type Val struct {
+	letter byte
+	dist   int
 }
 
 func hillclimbing() {
-	file, err := os.Open("Data\\test.txt")
+	file, err := os.Open("data/aoc12.txt")
 	if err != nil {
 		fmt.Println(err)
 	}
 	defer file.Close()
-
 	var topo [][]byte = [][]byte{}
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
-		fmt.Println(line)
 		topo = append(topo, []byte(line))
 	}
 
-	fmt.Println("-----")
+	var start, end Coord
+	visited := make(map[Coord]Val)
+	unvisited := make(map[Coord]Val)
 
-	var start, end coord
+	// find the start and end
+	R := len(topo)
+	C := len(topo[0])
+	for r := 0; r < R; r++ {
+		for c := 0; c < C; c++ {
 
-	for r := 0; r < len(topo); r++ {
-		for c := 0; c < len(topo[r]); c++ {
+			coord := Coord{r: r, c: c}
+			d := R * C
+
 			if topo[r][c] == 'S' {
-				start = coord{r: r, c: c}
 				topo[r][c] = 'a'
+				start = coord
+				d = 0
 			}
 
 			if topo[r][c] == 'E' {
-				end = coord{r: r, c: c}
 				topo[r][c] = 'z'
+				end = coord
 			}
+
+			val := Val{letter: topo[r][c], dist: d}
+			unvisited[coord] = val
 		}
 	}
 
-	visited := make(map[coord]coord)
-	dist := dynamicsearch(start, end, topo, visited)
-	fmt.Println("dist=", dist)
-	printDistanced(topo)
+	fmt.Println("start: ", start, "end: ", end)
 
-	fmt.Println(visited)
-	// fmt.Println(distanced)
+	node := start
+
+	prevnode := node
+
+	for node != end {
+		val := unvisited[node]
+
+		// fmt.Println("Current node: ", node, val)
+
+		top := Coord{node.r - 1, node.c}
+		bottom := Coord{node.r + 1, node.c}
+		right := Coord{node.r, node.c + 1}
+		left := Coord{node.r, node.c - 1}
+
+		neighbors := []Coord{top, bottom, left, right}
+
+		for _, neighbor := range neighbors {
+			if nv, found := unvisited[neighbor]; found {
+				if val.letter >= nv.letter || val.letter == nv.letter-1 {
+					d := val.dist + 1
+					if nv.dist > d {
+						unvisited[neighbor] = Val{nv.letter, d}
+					}
+				}
+			}
+		}
+
+		visited[node] = val
+
+		delete(unvisited, node)
+
+		M := R * C
+		for k := range unvisited {
+			if unvisited[k].dist < M {
+				M = unvisited[k].dist
+				node = k
+			}
+		}
+
+		if node == prevnode {
+			fmt.Println("Stuck in a loop?", node, prevnode)
+			// M := R * C
+			// for k := range unvisited {
+			// 	fmt.Println(k, unvisited[k])
+			// 	if unvisited[k].dist < M {
+			// 		fmt.Println(k, unvisited[k])
+			// 		M = unvisited[k].dist
+			// 		node = k
+			// 	}
+			// }
+
+			break
+		}
+
+		prevnode = node
+	}
+
+	fmt.Println("Result:", unvisited[end])
+
 	if err := scanner.Err(); err != nil {
 		fmt.Println(err)
-	}
-}
-
-func printDistanced(topo [][]byte) {
-	for r := 0; r < len(topo); r++ {
-		for c := 0; c < len(topo[r]); c++ {
-			if d, f := distanced[coord{r: r, c: c}]; f {
-				fmt.Printf("%02d ", d)
-			} else {
-				fmt.Print(" x ")
-			}
-		}
-		fmt.Println()
 	}
 }
