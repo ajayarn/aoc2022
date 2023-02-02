@@ -12,5 +12,5 @@ func main() {
 	// ropebridge()
 	// cathoderay()
 	// monkeyinthemiddle()
-	hillclimbing()
+	hillclimbing2()
 }
